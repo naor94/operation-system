@@ -1,71 +1,63 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<stdio.h>
-#include<unistd.h>
-#include<sys/types.h>
-#include<string.h>
-#include<wait.h>
-#include<signal.h>
-#include<sys/wait.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <sys/uio.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/fcntl.h>
+#include <sys/wait.h>
+#include <stdbool.h>
+
+int j;
+int _chlids[5];
 
 
-void signal_handle1(int signal){
-    printf("PID %d %s\n",getpid(),"ready");}
-void signal_handle2(int signal){
-    printf("PID %d %s\n",getpid(),"caught one");}
-void signal_handle3(int signal){
-    printf("PID %d %s\n",getpid(),"is dead");}
+void sigCather(int sig_num)
+{
+    signal(SIGTERM,sigCather);
+    printf("PID %d is caught one\n",getpid());
+    if(j >-1){
+        kill(_chlids[j],SIGTERM);
+    }
+}
 
-int main (){
-
+int main() 
+{ 
 pid_t pid;
+int zombi;
+int state;
 
-// the zombie collector
+signal(SIGTERM, sigCather);
 
-pid_t zombies[5];
-
-// create 4 more processes
-for (int i = 0; i < 4; i++) {
-  pid = fork();
-  if(!pid)
-    break;
+for (int i = 0; i < 5; i++)
+{
+    pid = fork();
+    if(pid == 0){
+    //chlid Process
+    printf("PID %d is ready \n", getpid());
+    j = i-1;
+    pause(); // wait for singal
+    exit(0); // become a zombi
+    }
+    // Parent Process cllect the chlids.
+    _chlids[i] = pid;
 }
+    sleep(1);
+    kill(_chlids[4],SIGTERM);
+    sleep(1);
+  
+    for (size_t i = 0; i < 5; i++)
+    {
+        zombi = wait(&state);
+        printf("process %d is dead\n",zombi);
+        kill(zombi,SIGKILL);
+    }
 
-// signal check
-  if (signal(1, signal_handle1) == SIG_ERR){
-  printf("%s\n","can't catch SIGREADY");
-  }
-  else{
-//   wait(0);
-  sleep(2);
-  kill(getpid(),1); // kill order - and set red
-  }
 
-
-
-  if (signal(1, signal_handle2) == SIG_ERR){
-  printf("%s\n","can't catch SIGREADY");
-  }
-  else{
-  sleep(2);
-  kill(getpid(),1); // kill and catch the signal
-  }
+    return 0;
+} 
 
 
 
-pid_t temp; // for the zombies catch
-int i=0;
-  if (signal(1, signal_handle3) == SIG_ERR){
-  printf("%s\n","can't catch SIGREADY");
-  }
-  else{
-  sleep(2);
-  temp = getpid();
-  kill(getpid(),1); // kill and catch the signal
-  zombies[i] = getpid(); // father catch all the zombies
-  i++;
-  }
-
-
-exit(0);
-}
